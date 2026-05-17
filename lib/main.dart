@@ -12,6 +12,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+
       home: PowerPage(),
     );
   }
@@ -69,26 +74,142 @@ class _PowerPageState extends State<PowerPage> {
   }
 
   // =========================
-  // Input Field
+  // Ratio Input
   // =========================
 
-  Widget field(String label, TextEditingController controller) {
+  Widget ratioField(
+    String title,
+    TextEditingController primary,
+    TextEditingController secondary,
+    String unit,
+  ) {
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
 
-      child: TextField(
-        controller: controller,
+      child: Row(
+        children: [
 
-        // iPhone 可輸入小數點與負號
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
 
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+          // 一次側
+          Expanded(
+            child: TextField(
+              controller: primary,
+
+              keyboardType:
+                  const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+
+              decoration: InputDecoration(
+                labelText: "一次側",
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              "$unit :",
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+
+          // 二次側
+          Expanded(
+            child: TextField(
+              controller: secondary,
+
+              keyboardType:
+                  const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+
+              decoration: InputDecoration(
+                labelText: "二次側",
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              unit,
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
+  // Value + Angle Row
+  // =========================
+
+  Widget fieldRow(
+    String valueLabel,
+    TextEditingController valueController,
+    String angleLabel,
+    TextEditingController angleController,
+  ) {
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+
+      child: Row(
+        children: [
+
+          // 數值
+          Expanded(
+            child: TextField(
+              controller: valueController,
+
+              keyboardType:
+                  const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+
+              decoration: InputDecoration(
+                labelText: valueLabel,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          // 角度
+          Expanded(
+            child: TextField(
+              controller: angleController,
+
+              keyboardType:
+                  const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+
+              decoration: InputDecoration(
+                labelText: angleLabel,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -104,19 +225,19 @@ class _PowerPageState extends State<PowerPage> {
     double iAngle,
   ) {
 
-    // θ = V角 - I角
+    // 相位差
     double theta = vAngle - iAngle;
 
     // PF
     double pf = cos(degToRad(theta));
 
-    // W
+    // P
     double p = v * i * pf;
 
-    // VAR
+    // Q
     double q = v * i * sin(degToRad(theta));
 
-    // VA
+    // S
     double s = v * i;
 
     return {
@@ -129,7 +250,7 @@ class _PowerPageState extends State<PowerPage> {
   }
 
   // =========================
-  // Main Calculate
+  // Calculate
   // =========================
 
   void calculate() {
@@ -147,7 +268,7 @@ class _PowerPageState extends State<PowerPage> {
         (double.tryParse(ptSecondary.text) ?? 1);
 
     // =========================
-    // Actual Voltage
+    // Voltage
     // =========================
 
     double VR = (double.tryParse(vr.text) ?? 0) * ptRatio;
@@ -155,7 +276,7 @@ class _PowerPageState extends State<PowerPage> {
     double VT = (double.tryParse(vt.text) ?? 0) * ptRatio;
 
     // =========================
-    // Actual Current
+    // Current
     // =========================
 
     double IR = (double.tryParse(ir.text) ?? 0) * ctRatio;
@@ -183,30 +304,29 @@ class _PowerPageState extends State<PowerPage> {
     var t = calcPhase(VT, VTA, IT, ITA);
 
     // =========================
-    // Total
+    // Total Power
     // =========================
 
-    // MW
-    double totalMW =
+    double totalP =
         (r["p"]! + s["p"]! + t["p"]!) / 1000000;
 
-    // MVAR
-    double totalMVAR =
+    double totalQ =
         (r["q"]! + s["q"]! + t["q"]!) / 1000000;
 
-    // MVA
-    double totalMVA =
+    double totalS =
         (r["s"]! + s["s"]! + t["s"]!) / 1000000;
 
-    // PF
     double totalPF =
-        totalMVA == 0
+        totalS == 0
             ? 0
-            : totalMW / totalMVA;
+            : totalP / totalS;
 
+    // =========================
     // Leading / Lagging
+    // =========================
+
     String leadLag =
-        totalMVAR >= 0
+        totalQ >= 0
             ? "落後 Lagging"
             : "超前 Leading";
 
@@ -234,7 +354,7 @@ class _PowerPageState extends State<PowerPage> {
       result =
 """
 ========================
-真實一次側
+一次側實際值
 ========================
 
 VR : ${VR.toStringAsFixed(2)} V
@@ -246,19 +366,18 @@ IS : ${IS.toStringAsFixed(2)} A
 IT : ${IT.toStringAsFixed(2)} A
 
 ========================
-功率
+功率分析
 ========================
 
-P  : ${totalMW.toStringAsFixed(3)} MW
+P  : ${totalP.toStringAsFixed(3)} MW
 
-Q  : ${totalMVAR.toStringAsFixed(3)} MVAR
+Q  : ${totalQ.toStringAsFixed(3)} MVAR
 
-S  : ${totalMVA.toStringAsFixed(3)} MVA
+S  : ${totalS.toStringAsFixed(3)} MVA
 
 PF : ${totalPF.toStringAsFixed(4)}
 
 狀態 : $leadLag
-
 
 
 """;
@@ -293,18 +412,28 @@ PF : ${totalPF.toStringAsFixed(4)}
             // =========================
 
             const Text(
-              "CT / PT",
+              "CT / PT 比例",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
 
-            field("CT 一次側", ctPrimary),
-            field("CT 二次側", ctSecondary),
+            const SizedBox(height: 10),
 
-            field("PT 一次側", ptPrimary),
-            field("PT 二次側", ptSecondary),
+            ratioField(
+              "CT",
+              ctPrimary,
+              ctSecondary,
+              "A",
+            ),
+
+            ratioField(
+              "PT",
+              ptPrimary,
+              ptSecondary,
+              "V",
+            ),
 
             const SizedBox(height: 20),
 
@@ -314,22 +443,38 @@ PF : ${totalPF.toStringAsFixed(4)}
             // Voltage
             // =========================
 
+            const SizedBox(height: 20),
+
             const Text(
-              "三相 電壓",
+              "RST 電壓",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
 
-            field("Va", vr),
-            field("∠Va", vrAngle),
+            const SizedBox(height: 10),
 
-            field("Vb", vs),
-            field("∠Vb", vsAngle),
+            fieldRow(
+              "VR",
+              vr,
+              "∠VR",
+              vrAngle,
+            ),
 
-            field("Vc", vt),
-            field("∠Vc", vtAngle),
+            fieldRow(
+              "VS",
+              vs,
+              "∠VS",
+              vsAngle,
+            ),
+
+            fieldRow(
+              "VT",
+              vt,
+              "∠VT",
+              vtAngle,
+            ),
 
             const SizedBox(height: 20),
 
@@ -339,22 +484,38 @@ PF : ${totalPF.toStringAsFixed(4)}
             // Current
             // =========================
 
+            const SizedBox(height: 20),
+
             const Text(
-              "三相 電流",
+              "RST 電流",
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
 
-            field("Ia", ir),
-            field("∠Ia", irAngle),
+            const SizedBox(height: 10),
 
-            field("Ib", isr),
-            field("∠Ib", isAngle),
+            fieldRow(
+              "IR",
+              ir,
+              "∠IR",
+              irAngle,
+            ),
 
-            field("Ic", it),
-            field("∠Ic", itAngle),
+            fieldRow(
+              "IS",
+              isr,
+              "∠IS",
+              isAngle,
+            ),
+
+            fieldRow(
+              "IT",
+              it,
+              "∠IT",
+              itAngle,
+            ),
 
             const SizedBox(height: 30),
 
@@ -366,13 +527,15 @@ PF : ${totalPF.toStringAsFixed(4)}
               width: double.infinity,
 
               child: ElevatedButton(
+
                 onPressed: calculate,
 
                 child: const Padding(
                   padding: EdgeInsets.all(16),
+
                   child: Text(
                     "計算",
-                    style: TextStyle(fontSize: 20),
+                    style: TextStyle(fontSize: 22),
                   ),
                 ),
               ),
@@ -386,11 +549,14 @@ PF : ${totalPF.toStringAsFixed(4)}
 
             SelectableText(
               result,
+
               style: const TextStyle(
                 fontSize: 20,
                 height: 1.5,
               ),
             ),
+
+            const SizedBox(height: 50),
           ],
         ),
       ),
